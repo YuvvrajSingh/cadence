@@ -7,11 +7,11 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - DATABASE_URL=mongodb+srv://yuvvrajsinghhrathore:D74rajpcdARqiuTJ@cluster0.owsctzu.mongodb.net/department_timetable?retryWrites=true&w=majority
-      - JWT_SECRET=change-me-to-a-long-random-string
-      - INTERNAL_SECRET=attendance_secure_secret_key_99
+      - DATABASE_URL=${DATABASE_URL}
+      - JWT_SECRET=${JWT_SECRET}
+      - INTERNAL_SECRET=${INTERNAL_SECRET}
       - GRADEAI_API_URL=http://gradeai:8000
-      - GRADEAI_SHARED_SECRET=super-secret-backend-key
+      - GRADEAI_SHARED_SECRET=${GRADEAI_SHARED_SECRET}
       - CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000
     restart: always
     volumes:
