@@ -1,0 +1,74 @@
+import { Router, z, requireAdmin, idParamSchema, objectIdSchema } from "./shared";
+import { userController } from "../controllers/user.controller";
+
+const router = Router();
+
+router.use(requireAdmin);
+
+const createUserSchema = z
+  .object({
+    body: z.object({
+      email: z.string().email(),
+      password: z.string().min(8),
+      role: z.enum(["ADMIN", "TEACHER", "TIMETABLE_INCHARGE"]),
+      teacherId: objectIdSchema.optional(),
+    }),
+  })
+  .superRefine((data, ctx) => {
+    const b = data.body;
+    if (b.role === "TEACHER" && b.teacherId == null) {
+      ctx.addIssue({
+        code: "custom",
+        message: "teacherId is required when role is TEACHER",
+        path: ["body", "teacherId"],
+      });
+    }
+    if (b.role === "ADMIN" && b.teacherId != null) {
+      ctx.addIssue({
+        code: "custom",
+        message: "teacherId must be omitted when role is ADMIN",
+        path: ["body", "teacherId"],
+      });
+    }
+  });
+
+router.get("/", userController.list);
+
+router.post("/", (req, _res, next) => {
+  console.log("POST /api/users - Role:", req.body.role);
+  try {
+    createUserSchema.parse({ body: req.body });
+    next();
+  } catch (error) {
+    next(error);
+  }
+}, userController.create);
+
+router.delete("/:id", (req, _res, next) => {
+  try {
+    idParamSchema.parse({ id: req.params.id });
+    next();
+  } catch (error) {
+    next(error);
+  }
+}, userController.remove);
+
+const updateUserSchema = z.object({
+  body: z.object({
+    role: z.enum(["ADMIN", "TEACHER", "TIMETABLE_INCHARGE"]).optional(),
+    isActive: z.boolean().optional(),
+  }),
+});
+
+router.put("/:id", (req, _res, next) => {
+  try {
+    idParamSchema.parse({ id: req.params.id });
+    updateUserSchema.parse({ body: req.body });
+    next();
+  } catch (error) {
+    next(error);
+  }
+}, userController.update);
+
+export default router;
+

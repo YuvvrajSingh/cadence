@@ -1,0 +1,54 @@
+services:
+  backend:
+    build:
+      context: ./time-table-backend
+      dockerfile: Dockerfile
+    container_name: cadence-backend
+    ports:
+      - "3001:3001"
+    environment:
+      - DATABASE_URL=mongodb+srv://yuvvrajsinghhrathore:D74rajpcdARqiuTJ@cluster0.owsctzu.mongodb.net/department_timetable?retryWrites=true&w=majority
+      - JWT_SECRET=change-me-to-a-long-random-string
+      - INTERNAL_SECRET=attendance_secure_secret_key_99
+      - GRADEAI_API_URL=http://gradeai:8000
+      - GRADEAI_SHARED_SECRET=super-secret-backend-key
+      - CORS_ORIGIN=http://localhost:3000,http://127.0.0.1:3000
+    restart: always
+    volumes:
+      - cadence-backend-uploads:/app/public/uploads
+
+  gradeai:
+    build:
+      context: ./gradeai
+      dockerfile: Dockerfile
+    container_name: cadence-gradeai
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      - VISION_MODEL=minicpm-v:latest
+      - GRADING_MODEL=mistral:latest
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: always
+    volumes:
+      - cadence-gradeai-uploads:/app/uploads
+      - cadence-gradeai-diagrams:/app/diagrams
+
+  frontend:
+    build:
+      context: ./timetable-light
+      dockerfile: Dockerfile
+    container_name: cadence-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - API_BACKEND_URL=http://backend:3001
+    restart: always
+    depends_on:
+      - backend
+
+volumes:
+  cadence-backend-uploads:
+  cadence-gradeai-uploads:
+  cadence-gradeai-diagrams:

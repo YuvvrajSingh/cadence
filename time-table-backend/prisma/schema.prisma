@@ -1,0 +1,456 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+type NotificationLogMetadata {
+  auditReport    String[]
+  className      String?
+  classSectionId String?
+  current        NotificationLogMetadataCurrent?
+  day            Int?
+  labsCount      Int?
+  lecturesCount  Int?
+  previous       NotificationLogMetadataPrevious?
+  slotOrder      Int?
+  subjectName    String?
+  teacherName    String?
+}
+
+type NotificationLogMetadataCurrent {
+  className   String
+  day         Int
+  slotOrder   Int
+  subjectName String
+  teacherName String
+}
+
+type NotificationLogMetadataPrevious {
+  className   String
+  day         Int
+  slotOrder   Int
+  subjectName String
+  teacherName String
+}
+
+type SubmissionQueueAnswers {
+  image_paths     String[]
+  question_number Int
+}
+
+model AcademicYear {
+  id            String         @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt DateTime @db.Date @default(now())
+  endDate       DateTime       @db.Date
+  endYear       Int
+  isActive      Boolean        @default(true)
+  label         String         @unique
+  startDate     DateTime       @db.Date
+  startYear     Int
+  status AcademicYearStatus
+  updatedAt DateTime @db.Date @updatedAt
+  classSections ClassSection[]
+
+  @@unique([startYear, endYear])
+}
+
+model AttendanceRecord {
+  id        String @id @default(auto()) @map("_id") @db.ObjectId
+  /// Field referred in an index, but found no data to define the type.
+  date DateTime @db.Date
+  /// Field referred in an index, but found no data to define the type.
+  studentId String @db.ObjectId
+  /// Field referred in an index, but found no data to define the type.
+  subjectId String @db.ObjectId
+  status    String?
+
+  student   Student @relation(fields: [studentId], references: [id])
+  subject   Subject @relation(fields: [subjectId], references: [id])
+
+  @@index([studentId, subjectId])
+  @@index([date, subjectId])
+}
+
+model Branch {
+  id       String         @id @default(auto()) @map("_id") @db.ObjectId
+  name     String         @unique
+  sections ClassSection[]
+}
+
+model ClassSection {
+  id             String         @id @default(auto()) @map("_id") @db.ObjectId
+  academicYearId String         @db.ObjectId
+  branchId       String         @db.ObjectId
+  createdAt DateTime @db.Date @default(now())
+  semester       Int
+  updatedAt DateTime @db.Date @updatedAt
+  year           Int
+  academicYear   AcademicYear   @relation(fields: [academicYearId], references: [id])
+  branch         Branch         @relation(fields: [branchId], references: [id])
+  subjects       ClassSubject[]
+  timetable      TimetableEntry[]
+  students       Student[]
+
+  @@unique([academicYearId, branchId, year, semester])
+}
+
+model ClassSubject {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  classSectionId String       @db.ObjectId
+  subjectId      String       @db.ObjectId
+  classSection   ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subject        Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([classSectionId, subjectId])
+}
+
+model EntryCancellation {
+  id                 String          @id @default(auto()) @map("_id") @db.ObjectId
+  cancelDate         String
+  timetableEntryId   String          @db.ObjectId
+  reason             String?
+  cancelledByTeacherId String?       @db.ObjectId
+  cancelledByAdminId   String?       @db.ObjectId
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  timetableEntry     TimetableEntry  @relation(fields: [timetableEntryId], references: [id], onDelete: Cascade)
+  cancelledByTeacher Teacher?        @relation(fields: [cancelledByTeacherId], references: [id], onDelete: SetNull)
+  cancelledByAdmin   User?           @relation(fields: [cancelledByAdminId], references: [id], onDelete: SetNull)
+
+  @@unique([timetableEntryId, cancelDate])
+}
+
+model Lab {
+  id              String          @id @default(auto()) @map("_id") @db.ObjectId
+  capacity        Int
+  name            String          @unique
+  labGroupEntries LabGroupEntry[]
+}
+
+model LabGroupEntry {
+  id               String         @id @default(auto()) @map("_id") @db.ObjectId
+  groupName        String
+  labId            String         @db.ObjectId
+  subjectId        String         @db.ObjectId
+  teacherId        String         @db.ObjectId
+  timetableEntryId String         @db.ObjectId
+  timetableEntry   TimetableEntry @relation(fields: [timetableEntryId], references: [id], onDelete: Cascade)
+  subject          Subject        @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  lab              Lab            @relation(fields: [labId], references: [id], onDelete: Restrict)
+  teacher          Teacher        @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+}
+
+model NotificationLog {
+  id               String                  @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt DateTime @db.Date @default(now())
+  date             DateTime                @db.Date
+  message          String
+  metadata         NotificationLogMetadata
+  performedBy      String
+  timetableEntryId String?                 @db.ObjectId
+  type NotificationLogType
+  timetableEntry   TimetableEntry?         @relation(fields: [timetableEntryId], references: [id], onDelete: SetNull)
+}
+
+model Room {
+  id               String           @id @default(auto()) @map("_id") @db.ObjectId
+  capacity         Int
+  name             String           @unique
+  timetableEntries TimetableEntry[]
+}
+
+model Slot {
+  id               String           @id @default(auto()) @map("_id") @db.ObjectId
+  endTime          DateTime         @db.Date
+  label            String           @unique
+  order            Int              @unique
+  startTime        DateTime         @db.Date
+  timetableEntries TimetableEntry[]
+}
+
+model Student {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  classSectionId String   @db.ObjectId
+  createdAt DateTime @db.Date @default(now())
+  email          String?
+  isActive       Boolean @default(true)
+  name           String
+  passwordHash   String
+  rollNumber     String   @unique
+  updatedAt DateTime @db.Date @updatedAt
+  batch          String?
+  classSection   ClassSection @relation(fields: [classSectionId], references: [id])
+  history        StudentHistory[]
+  attendanceRecords AttendanceRecord[]
+
+  @@index([classSectionId])
+}
+
+model StudentHistory {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  action StudentHistoryAction
+  createdAt DateTime @db.Date @default(now())
+  fromSectionId String?  @db.ObjectId
+  studentId     String   @db.ObjectId
+  toSectionId   String   @db.ObjectId
+  note          String?
+  performedBy   String?
+  student       Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@index([studentId])
+}
+
+model Subject {
+  id               String           @id @default(auto()) @map("_id") @db.ObjectId
+  abbreviation     String
+  code             String           @unique
+  createdAt DateTime @db.Date @default(now())
+  creditHours      Int
+  isActive         Boolean @default(true)
+  name             String
+  type SubjectType
+  updatedAt DateTime @db.Date @updatedAt
+  teacherSubjects  TeacherSubject[]
+  classSubjects    ClassSubject[]
+  timetableEntries TimetableEntry[]
+  labGroupEntries  LabGroupEntry[]
+  attendanceRecords AttendanceRecord[]
+}
+
+model Teacher {
+  id                 String              @id @default(auto()) @map("_id") @db.ObjectId
+  abbreviation       String              @unique
+  createdAt DateTime @db.Date @default(now())
+  email              String?
+  isActive           Boolean @default(true)
+  name               String
+  workloadLimit      Int                 @default(20)
+  updatedAt DateTime @db.Date @updatedAt
+  user               User?
+  teacherSubjects    TeacherSubject[]
+  timetableEntries   TimetableEntry[]
+  labGroupEntries    LabGroupEntry[]
+  entryCancellations EntryCancellation[]
+}
+
+model TeacherSubject {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  subjectId String   @db.ObjectId
+  teacherId String   @db.ObjectId
+  groups    String[] @default([])
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, subjectId])
+}
+
+model TimetableEntry {
+  id             String              @id @default(auto()) @map("_id") @db.ObjectId
+  classSectionId String              @db.ObjectId
+  createdAt DateTime @db.Date @default(now())
+  day            Int
+  entryType TimetableEntryType
+  roomId         String?             @db.ObjectId
+  slotId         String              @db.ObjectId
+  subjectId      String?             @db.ObjectId
+  teacherId      String?             @db.ObjectId
+  updatedAt DateTime @db.Date @updatedAt
+  classSection   ClassSection        @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  slot           Slot                @relation(fields: [slotId], references: [id], onDelete: Restrict)
+  subject        Subject?            @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacher        Teacher?            @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  room           Room?               @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  labGroups      LabGroupEntry[]
+  notificationLogs NotificationLog[]
+  cancellations  EntryCancellation[]
+
+  @@unique([classSectionId, day, slotId])
+  @@index([teacherId, day, slotId])
+  @@index([roomId, day, slotId])
+}
+
+model User {
+  id           String             @id @default(auto()) @map("_id") @db.ObjectId
+  createdAt DateTime @db.Date @default(now())
+  email        String             @unique
+  isActive     Boolean @default(true)
+  passwordHash String
+  role Role
+  isTimetableIncharge Boolean   @default(false)
+  teacherId    String?            @unique @db.ObjectId
+  updatedAt DateTime @db.Date @updatedAt
+  teacher      Teacher?           @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  cancellations EntryCancellation[]
+}
+
+model Notice {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  content   String
+  postedBy  String   @db.ObjectId // Admin's User ID
+  target      NoticeTarget @default(ALL)
+  tags        String[]
+  reportCount Int          @default(0)
+  reporterIds String[]
+  isArchived  Boolean      @default(false)
+  isProtected Boolean      @default(false)
+  showAuthor  Boolean      @default(true)
+  externalLink String?
+  attachments  NoticeAttachment[]
+  authorName  String?
+  authorRole  Role?
+  createdAt   DateTime     @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+type NoticeAttachment {
+  url  String
+  type String
+  name String
+}
+
+model config {
+  id  String @id @default(auto()) @map("_id") @db.ObjectId
+  /// Field referred in an index, but found no data to define the type.
+  key String?  @unique(map: "key_1")
+}
+
+model counters {
+  id  String @id @map("_id")
+  seq Int
+}
+
+model exams {
+  id                Int      @id @map("_id")
+  academic_year     String
+  branch            String
+  created_at DateTime @db.Date @default(now())
+  exam_name         String
+  exam_type         String
+  is_active         Boolean
+  results_published Boolean
+  semester          String
+  subject           String
+  teacher_name      String
+  year              String
+
+  @@index([teacher_name], map: "teacher_name_1")
+  @@index([is_active], map: "is_active_1")
+}
+
+model objections {
+  id               String   @id @default(auto()) @map("_id") @db.ObjectId
+  exam_id          Int
+  exam_name        String?
+  roll_number      String
+  student_name     String?
+  question_numbers Int[]
+  reason           String
+  status           String   @default("PENDING")   // PENDING | RESOLVED | DISMISSED
+  teacher_reply    String?
+  created_at       DateTime @default(now())
+  updated_at       DateTime @updatedAt
+
+  @@index([exam_id, roll_number], map: "exam_id_1_roll_number_1")
+  @@index([exam_id],              map: "exam_id_1")
+  @@index([status],               map: "status_1")
+}
+
+model questions {
+  id                 String @id @default(auto()) @map("_id") @db.ObjectId
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  diagram_image_path String?
+  exam_id            Int
+  model_answer       String
+  question_number    Int
+  question_text      String
+  total_marks        Int
+
+  @@unique([exam_id, question_number], map: "exam_id_1_question_number_1")
+}
+
+model student_results {
+  id                 String   @id @default(auto()) @map("_id") @db.ObjectId
+  created_at DateTime @db.Date @default(now())
+  exam_id            Int
+  extracted_ocr_text String
+  feedback           String
+  grade              String
+  image_path         String
+  marks_awarded      Float
+  model_answer       String
+  question_number    Int
+  roll_number        String
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  similarity_score Float?
+  student_name       String
+  total_marks        Float
+  updated_at DateTime @db.Date @updatedAt
+  @@unique([exam_id, roll_number, question_number], map: "exam_id_1_roll_number_1_question_number_1")
+  @@index([exam_id, roll_number], map: "exam_id_1_roll_number_1")
+}
+
+model submission_queue {
+  id           String                   @id @default(auto()) @map("_id") @db.ObjectId
+  answers      SubmissionQueueAnswers[]
+  branch       String
+  created_at DateTime @db.Date @default(now())
+  email        String
+  /// Could not determine type: the field only had null or empty values in the sample set.
+  error String?
+  exam_id      Int
+  roll_number  String
+  status       String
+  student_name String
+  updated_at DateTime @db.Date @updatedAt
+  year         String
+
+  @@unique([exam_id, roll_number], map: "exam_id_1_roll_number_1")
+  @@index([exam_id, status], map: "exam_id_1_status_1")
+}
+
+enum AcademicYearStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum TimetableEntryType {
+  LECTURE
+  LAB
+}
+
+enum NotificationLogType {
+  ENTRY_CREATED
+  ENTRY_UPDATED
+  ENTRY_DELETED
+  ENTRY_CANCELLED
+  ENTRY_CANCELLATION_UNDONE
+}
+
+enum Role {
+  ADMIN
+  TEACHER
+  STUDENT
+}
+
+enum StudentHistoryAction {
+  INITIAL
+  PROMOTED
+  DEMOTED
+}
+
+enum SubjectType {
+  THEORY
+  LAB
+}
+
+enum NoticeTarget {
+  ALL
+  TEACHERS
+  STUDENTS
+}
