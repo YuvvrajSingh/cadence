@@ -13,6 +13,9 @@
 
 **Cadence** is an enterprise-grade academic resource scheduling and automated examination grading platform. It integrates a **Conflict-Aware Timetable Management Engine** for conflict-free planning with an **LLM-Powered Answerbook Assessment System** that uses local vision models to digitize, index, and grade handwritten student exams.
 
+<img width="597" height="799" alt="image" src="https://github.com/user-attachments/assets/b54d5d69-1b1a-4597-90d5-53889dbaec2f" />
+
+
 </div>
 
 ---
